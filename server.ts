@@ -15,6 +15,7 @@ import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 
 const app = express();
+app.set('trust proxy', 1);
 // Security Headers Middleware
 app.use(helmet());
 
