@@ -392,6 +392,7 @@ async function startServer() {
       server: { middlewareMode: true },
       appType: "spa",
     });
+  }
 app.post("/api/stripe/create-payment-intent", async (req, res) => {
   try {
     const { amount } = req.body;
@@ -412,12 +413,17 @@ app.post("/api/stripe/create-payment-intent", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-// Endpoint 1: Send Verification Code
+// =========================
+// SEND VERIFICATION CODE
+// =========================
 app.post('/api/auth/send-code', async (req, res) => {
   const { email } = req.body;
-  if (!email) return res.status(400).json({ error: 'Email is required' });
 
-  // Generate 6-digit code
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+
+  // Generate one 6-digit verification code
   const code = Math.floor(100000 + Math.random() * 900000).toString();
   pendingVerifications.set(email, code);
 
@@ -427,37 +433,54 @@ app.post('/api/auth/send-code', async (req, res) => {
       to: email,
       subject: 'Your NexusVibe Verification Code',
       html: `
-        <div style="font-family: sans-serif; padding: 20px; background: #0f172a; color: #fff;">
-          <h2 style="color: #ec4899;">Welcome to NexusVibe!</h2>
+        <div style="font-family:sans-serif;padding:20px;background:#0f172a;color:#fff;">
+          <h2 style="color:#ec4899;">Welcome to NexusVibe!</h2>
           <p>Your verification code is:</p>
-          <h1 style="color: #ec4899; letter-spacing: 4px;">${code}</h1>
+          <h1 style="color:#ec4899;letter-spacing:4px;">${code}</h1>
         </div>
       `,
     });
-    res.json({ success: true, message: 'Verification code sent to email.' });
+
+    res.json({
+      success: true,
+      message: 'Verification code sent to email.',
+    });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Failed to send verification email' });
+    res.status(500).json({
+      error: 'Failed to send verification email',
+    });
   }
 });
 
-// Endpoint 2: Verify Code
+// =========================
+// VERIFY CODE
+// =========================
 app.post('/api/auth/verify-code', (req, res) => {
   const { email, code, name } = req.body;
+
   const storedCode = pendingVerifications.get(email);
 
   if (!storedCode || storedCode !== code) {
-    return res.status(400).json({ error: 'Invalid or expired verification code' });
+    return res.status(400).json({
+      error: 'Invalid or expired verification code',
+    });
   }
 
   pendingVerifications.delete(email);
 
   res.json({
     success: true,
-    user: { email, name },
+    user: {
+      email,
+      name,
+    },
   });
 });
-// Paystack Payment Route
+
+// =========================
+// PAYSTACK INITIALIZE
+// =========================
 app.post('/api/paystack/initialize', async (req, res) => {
   const { email, amount } = req.body;
 
@@ -466,13 +489,16 @@ app.post('/api/paystack/initialize', async (req, res) => {
       'https://api.paystack.co/transaction/initialize',
       {
         email,
-        amount: amount * 100, // Converts KES to cents/sub-units
+        amount: amount * 100,
         currency: 'KES',
-        callback_url: 'http://localhost:3000', // Redirects user back to your app after payment
+        callback_url: 'http://localhost:3000',
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY || 'sk_test_46340706237030ef13d4cbec2cd9c86f52553f42'}`,
+          Authorization: `Bearer ${
+            process.env.PAYSTACK_SECRET_KEY ||
+            'sk_test_46340706237030ef13d4cbec2cd9c86f52553f42'
+          }`,
           'Content-Type': 'application/json',
         },
       }
@@ -485,14 +511,28 @@ app.post('/api/paystack/initialize', async (req, res) => {
       reference: response.data.data.reference,
     });
   } catch (error: any) {
-    console.error('Paystack error:', error.response?.data || error.message);
-    res.status(500).json({ success: false, message: 'Payment initialization failed' });
+    console.error(
+      'Paystack error:',
+      error.response?.data || error.message
+    );
+
+    res.status(500).json({
+      success: false,
+      message: 'Payment initialization failed',
+    });
   }
 });
-// Paystack Webhook Handler (Confirms successful payments)
+
+// =========================
+// PAYSTACK WEBHOOK
+// =========================
 app.post('/api/paystack/webhook', (req, res) => {
   const hash = crypto
-    .createHmac('sha512', process.env.PAYSTACK_SECRET_KEY || 'sk_test_46340706237030ef13d4cbec2cd9c86f52553f42')
+    .createHmac(
+      'sha512',
+      process.env.PAYSTACK_SECRET_KEY ||
+        'sk_test_46340706237030ef13d4cbec2cd9c86f52553f42'
+    )
     .update(JSON.stringify(req.body))
     .digest('hex');
 
@@ -503,157 +543,206 @@ app.post('/api/paystack/webhook', (req, res) => {
       const userEmail = event.data.customer.email;
       const amountPaid = event.data.amount / 100;
 
-      console.log(`Payment confirmed for ${userEmail}: KES ${amountPaid}`);
-      // TODO: Grant premium access or save transaction to your database here
+      console.log(
+        `Payment confirmed for ${userEmail}: KES ${amountPaid}`
+      );
+
+      // TODO: Grant premium access or save transaction
     }
 
-    res.sendStatus(200);
-  } else {
-    res.sendStatus(400);
+    return res.sendStatus(200);
   }
+
+  res.sendStatus(400);
 });
 
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-  app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
-  }
-
- // 1. SECURE LOGIN ROUTE
+// =========================
+// LOGIN
+// =========================
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    
-    // Find the user in our array
-    const user = users.find(u => u.email === email);
+
+    const user = users.find((u) => u.email === email);
+
     if (!user) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({
+        error: 'Invalid email or password',
+      });
     }
 
-    // Securely compare the entered password with the hashed password stored in user.password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    const isPasswordValid = await bcrypt.compare(
+      password,
+      user.password
+    );
+
     if (!isPasswordValid) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({
+        error: 'Invalid email or password',
+      });
     }
 
-    // Login successful
-    res.status(200).json({ message: 'Login successful', user });
-  } catch (error) {
-    res.status(500).json({ error: 'Server error during login' });
+    res.status(200).json({
+      message: 'Login successful',
+      user,
+    });
+  } catch {
+    res.status(500).json({
+      error: 'Server error during login',
+    });
   }
 });
-// 2. FORGOT PASSWORD - SEND CODE ROUTE
+
+// =========================
+// FORGOT PASSWORD
+// =========================
 app.post('/api/auth/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
-    
-    // Find the user by the email they registered with
-    const user = users.find(u => u.email === email);
+
+    const user = users.find((u) => u.email === email);
 
     if (!user) {
-      // Return success anyway to prevent email enumeration/hacking
-      return res.status(200).json({ message: 'If that email exists, a reset code has been sent.' });
+      return res.status(200).json({
+        message:
+          'If that email exists, a reset code has been sent.',
+      });
     }
 
-    // Generate 6-digit code valid for 60 seconds
-    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
-    user.resetPasswordCode = resetCode;
-    user.resetPasswordExpires = Date.now() + 60 * 1000; // 60 seconds
+    const resetCode = Math.floor(
+      100000 + Math.random() * 900000
+    ).toString();
 
-    // Send the code to their registered email via Nodemailer
+    user.resetPasswordCode = resetCode;
+    user.resetPasswordExpires = Date.now() + 60 * 1000;
+
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: user.email,
       subject: 'NexusVibe Password Reset Code',
-      text: `Your password reset code is: ${resetCode}. It expires in 60 seconds.`
+      text: `Your password reset code is: ${resetCode}. It expires in 60 seconds.`,
     });
 
-    res.status(200).json({ message: 'Password reset code sent to email.' });
+    res.status(200).json({
+      message: 'Password reset code sent to email.',
+    });
   } catch (error) {
-    console.error('Error sending reset code:', error);
-    res.status(500).json({ error: 'Error sending reset code' });
+    console.error(error);
+
+    res.status(500).json({
+      error: 'Error sending reset code',
+    });
   }
 });
 
-// 3. RESET PASSWORD WITH CODE ROUTE
+// =========================
+// RESET PASSWORD
+// =========================
 app.post('/api/auth/reset-password', async (req, res) => {
   try {
     const { email, code, newPassword } = req.body;
 
-    // Find user and verify the code hasn't expired (60 seconds limit)
-    const user = users.find(u => 
-      u.email === email && 
-      u.resetPasswordCode === code && 
-      u.resetPasswordExpires > Date.now()
+    const user = users.find(
+      (u) =>
+        u.email === email &&
+        u.resetPasswordCode === code &&
+        u.resetPasswordExpires > Date.now()
     );
 
     if (!user) {
-      return res.status(400).json({ error: 'Invalid or expired password reset code.' });
+      return res.status(400).json({
+        error: 'Invalid or expired password reset code.',
+      });
     }
 
     if (!newPassword || newPassword.length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
+      return res.status(400).json({
+        error:
+          'Password must be at least 8 characters long.',
+      });
     }
 
-    // Hash the new password securely with bcrypt
     const salt = await bcrypt.genSalt(12);
+
     user.password = await bcrypt.hash(newPassword, salt);
-    
-    // Clear the reset code tokens so they can't be reused
+
     user.resetPasswordCode = undefined;
     user.resetPasswordExpires = undefined;
 
-    res.status(200).json({ message: 'Password successfully reset.' });
+    res.status(200).json({
+      message: 'Password successfully reset.',
+    });
   } catch (error) {
-    console.error('Error resetting password:', error);
-    res.status(500).json({ error: 'Error resetting password' });
+    console.error(error);
+
+    res.status(500).json({
+      error: 'Error resetting password',
+    });
   }
 });
 
-// 1. Apply Helmet to secure HTTP headers
+// =========================
+// SECURITY
+// =========================
 app.use(helmet());
 
-// 2. Apply Rate Limiting to prevent brute-force attacks on API routes
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: { error: 'Too many requests from this IP, please try again later.' }
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: {
+    error:
+      'Too many requests from this IP, please try again later.',
+  },
 });
+
 app.use('/api/', apiLimiter);
 
-// 3. Stricter rate limit specifically for login/auth routes to block hackers
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10, // Max 10 login/register attempts per 15 minutes
-  message: { error: 'Too many authentication attempts, please try again later.' }
+  max: 10,
+  message: {
+    error:
+      'Too many authentication attempts, please try again later.',
+  },
 });
+
 app.use('/api/auth/', authLimiter);
 
-// 4. Global Error Handler with Email Threat/Error Notification
+// =========================
+// GLOBAL ERROR HANDLER
+// =========================
 app.use(async (err: any, req: any, res: any, next: any) => {
   console.error('Security/Server Error Caught:', err);
 
-  // Send an email notification to yourself upon critical errors or potential attacks
   try {
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
-      to: process.env.EMAIL_USER, // Send alert to your own admin email
-      subject: '🚨 SECURITY ALERT: Server Error / Threat Detected',
-      text: `An error occurred on your server:\n\nRoute: ${req.method} ${req.originalUrl}\nIP: ${req.ip}\nError: ${err.message}`
+      to: process.env.EMAIL_USER,
+      subject:
+        '🚨 SECURITY ALERT: Server Error / Threat Detected',
+      text: `An error occurred on your server:
+
+Route: ${req.method} ${req.originalUrl}
+IP: ${req.ip}
+Error: ${err.message}`,
     });
   } catch (emailError) {
-    console.error('Failed to send error notification email:', emailError);
+    console.error(
+      'Failed to send error notification email:',
+      emailError
+    );
   }
 
-  res.status(500).json({ error: 'An internal security error occurred.' });
-});
-
-  server.listen(3000, () => {
-    console.log(`Server running on port:3000`);
+  res.status(500).json({
+    error: 'An internal security error occurred.',
   });
-}
+});
+  }
+// =========================
+// START SERVER
+// =========================
+server.listen(3000, () => {
+  console.log('Server running on port:3000');
+});
 
 startServer();
