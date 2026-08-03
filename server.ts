@@ -738,6 +738,13 @@ Error: ${err.message}`,
   });
 });
   }
+  // Serve static frontend files in production
+const distPath = path.join(__dirname, "../dist");
+app.use(express.static(distPath));
+
+app.get("*", (req, res) => {
+    res.sendFile(path.join(distPath, "index.html"));
+});
 // =========================
 // START SERVER
 // =========================
