@@ -1,0 +1,6 @@
+{
+  "name": "NexusVibe",
+  "description": "Premium AI social discovery platform: find your vibe before you find your person.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
