@@ -427,25 +427,25 @@ app.post('/api/auth/send-code', async (req, res) => {
   const code = Math.floor(100000 + Math.random() * 900000).toString();
   pendingVerifications.set(email, code);
 
-  try {
-    transporter.sendMail({
-      from: '"NexusVibe" <no-reply@nexusvibe.com>',
-      to: email,
-      subject: 'Your NexusVibe Verification Code',
-      html: `
-        <div style="font-family:sans-serif;padding:20px;background:#0f172a;color:#fff;">
-          <h2 style="color:#ec4899;">Welcome to NexusVibe!</h2>
-          <p>Your verification code is:</p>
-          <h1 style="color:#ec4899;letter-spacing:4px;">${code}</h1>
+    // 1. Fire email in background
+transporter.sendMail({
+    from: '"NexusVibe" <no-reply@nexusvibe.com>',
+    to: email,
+    subject: 'Your NexusVibe Verification Code',
+    html: `
+        <div style="font-family:sans-serif;padding:20px;background:#0f172a;">
+            <h2 style="color:#ec4899;">Welcome to NexusVibe!</h2>
+            <p>Your verification code is:</p>
+            <h1 style="color:#ec4899;letter-spacing:4px;">${code}</h1>
         </div>
-      `,
-    });
-     res.status(200).json({ success: true, message: 'Verification code sent!' });
-  } catch (error: any) {
-    console.error('Email send error:', error);
-    res.status(500).json({ error: 'Failed to send Verification email. PLease try again.'});
-  }
-  }); //Closes app.post
+    `
+}).catch((err) => {
+    console.error("Background email send error:", err);
+});
+
+// 2. Immediately respond to frontend
+return res.status(200).json({ success: true, message: 'Verification code sent.' });
+});
 
 // =========================
 // VERIFY CODE
@@ -610,14 +610,16 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     user.resetPasswordCode = resetCode;
     user.resetPasswordExpires = Date.now() + 60 * 1000;
 
-    await transporter.sendMail({
+    transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: user.email,
       subject: 'NexusVibe Password Reset Code',
       text: `Your password reset code is: ${resetCode}. It expires in 60 seconds.`,
+    }).catch((err) => {
+      console.error("Password reset email error:", err);
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       message: 'Password reset code sent to email.',
     });
   } catch (error) {
