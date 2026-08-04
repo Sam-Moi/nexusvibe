@@ -109,10 +109,12 @@ const handleRemoveFromBoardInbox = (id: string) => {
   return (
   <div className="min-h-screen bg-[#050816] font-sans antialiased flex text-[#dfe1f6] relative">
     <ShaderBackground />
+    {(!localStorage.getItem('profileCompleted') && showOnboarding) && (
   <OnboardingModal
   isOpen={showOnboarding}
   onComplete={handleOnboardingComplete}
 />
+    )}
 
     <Sidebar
       activeTab={activeTab}
@@ -185,7 +187,7 @@ const handleRemoveFromBoardInbox = (id: string) => {
     <SettingsModal
       isOpen={isSettingsOpen}
       onClose={() => setIsSettingsOpen(false)}
-      user={currentUser}
+      user={currentUser ?? undefined}
       onLogout={handleLogout}
     />
 

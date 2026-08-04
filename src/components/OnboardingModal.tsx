@@ -51,6 +51,9 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onComp
       vibes: selectedVibes.length ? selectedVibes : ['Tech Explorer'],
       avatar: avatarPreview,
     };
+    // Save completion flag to localStorage so it never pops up again
+    localStorage.setItem('profileCompleted', 'true');
+    
     onComplete(completedProfile);
   };
 

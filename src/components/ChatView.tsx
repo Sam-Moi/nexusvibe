@@ -22,7 +22,7 @@ import { Conversation, Message } from '../types';
 import { CallModal } from './CallModal';
 import { ProfileModal } from './ProfileModal';
 
-const MOCK_CONVERSATIONS: Conversation[] = [
+const MOCK_CONVERSATIONS: any[] = [
   {
     id: '1',
     user: { id: 'u1', name: 'Matilda', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', isOnline: true },
@@ -38,9 +38,9 @@ const MOCK_CONVERSATIONS: Conversation[] = [
 ];
 
 const ChatView: React.FC = () => {
-  const [conversations] = useState<Conversation[]>(MOCK_CONVERSATIONS);
+  const [conversations] = useState<any[]>(MOCK_CONVERSATIONS);
   const [activeChat, setActiveChat] = useState<Conversation | null>(MOCK_CONVERSATIONS[0]);
-  const [messages, setMessages] = useState<Message[]>([
+  const [messages, setMessages] = useState<any[]>([
     { id: '1', sender: 'ai', text: 'Hey! Are we still meeting up?', timestamp: '10:42 AM' },
     { id: '2', sender: 'user', text: 'hello', timestamp: '03:34 PM' },
   ]);
@@ -50,6 +50,7 @@ const ChatView: React.FC = () => {
   const [showMenu, setShowMenu] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [chatBg, setChatBg] = useState<string>('default');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Modal States
   const [isCallActive, setIsCallActive] = useState(false);
@@ -67,7 +68,7 @@ const ChatView: React.FC = () => {
     if (e) e.preventDefault();
     if (!newMessage.trim()) return;
 
-    const msg: Message = {
+    const msg: any = {
       id: Date.now().toString(),
       sender: 'user',
       text: newMessage,
@@ -83,7 +84,7 @@ const ChatView: React.FC = () => {
     const file = e.target.files?.[0];
     if (file) {
       const isImg = file.type.startsWith('image/');
-      const msg: Message = {
+      const msg: any = {
         id: Date.now().toString(),
         sender: 'user',
         text: isImg ? `📷 Sent an image: ${file.name}` : `📁 Sent a file: ${file.name}`,
@@ -109,6 +110,9 @@ const ChatView: React.FC = () => {
       setShowMenu(false);
     }
   };
+  const filteredConversations = conversations.filter((chat: any) => 
+  chat.user?.name?.toLowerCase().includes(searchQuery.toLowerCase())
+);
 
   return (
     <div className="flex h-[85vh] md:h-[82vh] bg-[#0d0e12] border border-[#22242e] rounded-xl overflow-hidden shadow-2xl relative">
@@ -146,12 +150,25 @@ const ChatView: React.FC = () => {
           activeChat ? 'hidden md:flex' : 'flex'
         }`}
       >
-        <div className="p-4 border-b border-[#22242e]">
-          <h2 className="text-lg font-bold text-white tracking-wide">Messages</h2>
+        <div className="p-4 border-b border-[#22242e] flex flex-col gap-3 ">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-white tracking-wide">Message</h2>
+            <button
+            onClick={() => {}}
+            className="bg-[#1f2233] hover:bg-[#2b2f45] text-xs font-semibold text-blue-400 px-3 py-1.5 rounded-full transition"
+            >
+              + Find People
+            </button>
+        </div>
+        <input
+        type="text"
+        placeholder="Search users..."
+        className="w-full bg-[#161822] border border-[#26293a] text-white text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-500"
+        />
         </div>
         
         <div className="flex-1 overflow-y-auto">
-          {conversations.map((chat) => (
+          {filteredConversations.map((chat) => (
             <div
               key={chat.id}
               onClick={() => {

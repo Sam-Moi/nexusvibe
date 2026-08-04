@@ -440,18 +440,12 @@ app.post('/api/auth/send-code', async (req, res) => {
         </div>
       `,
     });
-
-    res.json({
-      success: true,
-      message: 'Verification code sent to email.',
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({
-      error: 'Failed to send verification email',
-    });
+     res.status(200).json({ success: true, message: 'Verification code sent!' });
+  } catch (error: any) {
+    console.error('Email send error:', error);
+    res.status(500).json({ error: 'Failed to send Verification email. PLease try again.'});
   }
-});
+  }); //Closes app.post
 
 // =========================
 // VERIFY CODE
