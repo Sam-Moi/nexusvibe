@@ -428,7 +428,7 @@ app.post('/api/auth/send-code', async (req, res) => {
   pendingVerifications.set(email, code);
 
   try {
-    await transporter.sendMail({
+    transporter.sendMail({
       from: '"NexusVibe" <no-reply@nexusvibe.com>',
       to: email,
       subject: 'Your NexusVibe Verification Code',
